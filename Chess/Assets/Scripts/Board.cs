@@ -137,6 +137,8 @@ public class Board : MonoBehaviour
     
     
     // useful stuff
+    
+    // used to find tile when raycasting
     private Vector2Int TileIndexLookup(GameObject hitInfo)
     {
         for (int x = 0; x < TILE_COUNT_X; x++)
