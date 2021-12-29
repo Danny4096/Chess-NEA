@@ -8,20 +8,27 @@ public class Board : MonoBehaviour
     [Header("Art stuff yk")] 
     // serializefield makes it so that a private variable will show up in the unity editor
     [SerializeField] private Material material;
+    // values for positioning created tiles correctly with the board model
+    [SerializeField] private float tileSize = 1.0f;
+    [SerializeField] private float offsetY = 0.01f;
+    [SerializeField] private Vector3 boardCenter = Vector3.zero;
+    
 
+    
+    // Logic
     private readonly int TILE_COUNT_Y = 8;
     private readonly int TILE_COUNT_X = 8;
     private GameObject[,] _chessboard;
-    private Camera _currentCamera; 
+    private Camera _currentCamera;
     private Vector2Int _tileAtMouse;
-    
+    private Vector3 _bounds;
     
     
     // Initialisation procedure - Called even if script component is disabled
     private void Awake()
     {
         // Procedure call to generate tiles for the chessboard
-        CreateAllTiles(1, TILE_COUNT_X, TILE_COUNT_Y);
+        CreateAllTiles(tileSize, TILE_COUNT_X, TILE_COUNT_Y);
         
     }
 
@@ -81,6 +88,18 @@ public class Board : MonoBehaviour
     // Procedure to iterate over tile array and create all tiles
     private void CreateAllTiles(float size, int countX, int countY)
     {
+        // if the board is above y=0
+        offsetY += transform.position.y;
+        // define bounds of the board
+        // x: (number of tiles/2) * size == (8/2)*1
+        // y: 0
+        // z: ((number of tiles/2) * size) = ((8/2)*1)
+        // adding boardCentre to account for a shift in the centre of the board
+        // in this case the centre is -3.5,0,-3.5 because for the model im using,
+        // the pivot is in the centre of the first square
+        _bounds = new Vector3(((countX / 2.0f) * size), 0, ((countY / 2.0f) * size)) + boardCenter;
+
+
         _chessboard = new GameObject[countX, countY];
         for (int x = 0; x < countX; x++)
         {
@@ -111,11 +130,12 @@ public class Board : MonoBehaviour
         // geometry
         
         // dynamically generate 3d vectors for the corners of each tile
+        // use the y offset and subtract bounds so that the generated tiles line up correctly with the board model
         Vector3[] vertices = new Vector3[4];
-        vertices[0] = new Vector3(x * size, 0, y * size);
-        vertices[1] = new Vector3(x * size, 0, (y + 1) * size);
-        vertices[2] = new Vector3((x + 1) * size, 0, y * size);
-        vertices[3] = new Vector3((x + 1) * size, 0, (y + 1) * size);
+        vertices[0] = new Vector3(x * size, offsetY, y * size) - _bounds;
+        vertices[1] = new Vector3(x * size, offsetY, (y + 1) * size) - _bounds;
+        vertices[2] = new Vector3((x + 1) * size, offsetY, y * size) - _bounds;
+        vertices[3] = new Vector3((x + 1) * size, offsetY, (y + 1) * size) - _bounds;
 
         // triangle array to create the triangles that form the mesh
         // create 2 triangles by going from 0 to 1 then 2 and 1 to 3 then 2
