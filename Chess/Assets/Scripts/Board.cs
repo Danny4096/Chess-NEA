@@ -19,7 +19,7 @@ public class Board : MonoBehaviour
 
     [Header("prefabs and materials")] 
     [SerializeField] private GameObject[] prefabs;
-    [SerializeField] private Material[] sideMaterials;
+    [SerializeField] private Material[] pieceMaterials;
 
 
     // Logic
@@ -44,6 +44,7 @@ public class Board : MonoBehaviour
         CreateAllTiles(tileSize, TILE_COUNT_X, TILE_COUNT_Y);
         // Function call to load piece models
         prefabs = LoadPrefabs();
+        pieceMaterials = LoadPieceMaterials();
         // Procedure call to spawn pieces onto the board
         SpawnPieces();
         // Procedure call to set the initial positions for every piece on the board
@@ -281,7 +282,7 @@ public class Board : MonoBehaviour
         //piece.transform.localScale = Vector3.one;
         //new Vector3(0.01f, 0.01f, 0.01f);
         // set the material for the mesh renderer for the piece to one of the 2 materials in the sideMaterials array
-        piece.GetComponent<MeshRenderer>().material = sideMaterials[((int)type * 2) + side];
+        piece.GetComponent<MeshRenderer>().material = pieceMaterials[((int)type * 2) + side];
         return piece;
         
         
@@ -343,6 +344,13 @@ public class Board : MonoBehaviour
         return resources;
     }
 
+    private Material[] LoadPieceMaterials()
+    {
+        Material[] resources; 
+        resources = Resources.LoadAll<Material>("PieceMaterials");
+        return resources;
+    }
+    
     // shockingly, this handles piece movement
     private bool MovePiece(int x, int y, Piece currentlyHeld)
     {
@@ -392,4 +400,6 @@ public class Board : MonoBehaviour
 
         return true;
     }
+    
+    
 }
