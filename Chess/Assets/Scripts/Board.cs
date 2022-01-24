@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -15,6 +16,7 @@ public class Board : MonoBehaviour
     // this is the vector that represents the pivot of the board which is not necessarily the actual center of
     // the board such as in this case where the pivot is at -3.5, 0, -3.5 if the board is centered at 0,0,0
     [SerializeField] private Vector3 boardCenter = new Vector3(-3.5f, 0, -3.5f);
+    [SerializeField] private GameObject victoryScreen;
     
 
     [Header("prefabs and materials")] 
@@ -288,13 +290,16 @@ public class Board : MonoBehaviour
         GameObject pieceObject = Instantiate(prefabs[(int) type - 1], transform, true);
         Piece piece = pieceObject.GetComponent<Piece>();
 
+        
+        // this code has been replaced by code in the start function of the piece class
         // the models are the same for both sides so I wrote this to rotate the pieces 180 degrees about
         // the y-axis so the black pieces face inwards and not outwards
+        /*
         if (side == 1)
         {
             pieceObject.transform.eulerAngles = new Vector3(0, 180, 0);
         }
-//
+        */
         // set the type and side for the newly instantiated piece
         piece.type = type;
         piece.side = side;
@@ -358,6 +363,73 @@ public class Board : MonoBehaviour
         _availableMoves.Clear();
     }
     
+    // checkmate
+
+    private void Checkmate(int team)
+    {
+        DisplayVictory(team);
+    }
+
+    private void DisplayVictory(int winningTeam)
+    {
+        // set the victory screen to be active
+        victoryScreen.SetActive(true);
+        // set the win message object to active (0 is white, 1 is black. be default both are inactive)
+        victoryScreen.transform.GetChild(winningTeam).gameObject.SetActive(true);
+    }
+
+    public void ResetButton()
+    {
+        // clear UI
+        victoryScreen.transform.GetChild(0).gameObject.SetActive(false);
+        victoryScreen.transform.GetChild(1).gameObject.SetActive(false);
+        victoryScreen.SetActive(false);
+        
+        // clean up
+        
+        // fields reset
+        _currentlyHeld = null;
+        _availableMoves = new List<Vector2Int>();
+        isWhiteTurn = true;
+
+        // iterate over array of pieces and destroy piece gameObjects
+        for (int x = 0; x < TileCountX; x++)
+        {
+            for (int y = 0; y < TileCountY; y++)
+            {
+                if (_pieces[x,y] != null)
+                    Destroy(_pieces[x,y].gameObject);
+
+                // clear obj reference from array
+                _pieces[x, y] = null;
+            }
+        }
+
+        
+        // iterate over dead pieces arrays and destroy gameObjects
+        
+        for (int i = 0; i < _deadWhite.Count; i++)
+            Destroy(_deadWhite[i].gameObject);
+        
+        for (int i = 0; i < _deadBlack.Count; i++)
+            Destroy(_deadBlack[i].gameObject);
+        
+        // clear object references in dead piece arrays
+        _deadWhite.Clear();
+        _deadBlack.Clear();
+        
+        
+        // respawn pieces
+        SpawnPieces();
+        SetAllPiecePositions();
+    }
+
+    public void ExitButton()
+    {
+        Application.Quit();
+    }
+    
+    
     
     // useful stuff
     
@@ -403,42 +475,48 @@ public class Board : MonoBehaviour
         {
             return false;
         }
-        // check if tile is free
+        // check if tile is not free
         if (_pieces[x, y] != null)
         {
             Piece existingPiece = _pieces[x, y];
+            
             // if the piece is the same colour as the currentlyheld piece, move the current piece back
             if (currentlyHeld.side == existingPiece.side)
                 return false;
             
-            // if the piece is the opponents piece
-            if (currentlyHeld.side != existingPiece.side)
+            // if its a white piece
+            if (existingPiece.side == 0)
             {
-                // if its a white piece
-                if (existingPiece.side == 0)
+                if (existingPiece.type == PieceType.King)
                 {
-                    _deadWhite.Add(existingPiece);
-                    // scale the piece down
-                    existingPiece.SetScale(Vector3.one * deadPieceScalar);
-                    // set the position of the piece to the side of the board
-                    // deathOffsetY because the edge of the board is higher than the center so pieces need to be higher
-                    // 8 * tileSize puts it to the edge
-                    // -1 * tileSize makes it so its just behind the first rank on the board
-                    // (Vector3.forward * deathSpacing * deadWhite.Count makes it so that each dead piece is a bit
-                    // ahead of the last one on the z axis by adding a vector of (0, 0, deathSpacing) for each piece
-                    // that has died so far 
-                    existingPiece.SetPosition(new Vector3(8 * tileSize, deathOffsetY, -1 * tileSize)
-                                              + Vector3.forward * deathSpacing * _deadWhite.Count);
-                    
+                    Checkmate(1);
                 }
-                else
+                
+                _deadWhite.Add(existingPiece);
+                // scale the piece down
+                existingPiece.SetScale(Vector3.one * deadPieceScalar);
+                // set the position of the piece to the side of the board
+                // deathOffsetY because the edge of the board is higher than the center so pieces need to be higher
+                // 8 * tileSize puts it to the edge
+                // -1 * tileSize makes it so its just behind the first rank on the board
+                // (Vector3.forward * deathSpacing * deadWhite.Count makes it so that each dead piece is a bit
+                // ahead of the last one on the z axis by adding a vector of (0, 0, deathSpacing) for each piece
+                // that has died so far 
+                existingPiece.SetPosition(new Vector3(8 * tileSize, deathOffsetY, -1 * tileSize)
+                                          + Vector3.forward * deathSpacing * _deadWhite.Count);
+            }
+            else
+            {
+                if (existingPiece.type == PieceType.King)
                 {
-                    _deadBlack.Add(existingPiece);
-                    existingPiece.SetScale(Vector3.one * deadPieceScalar);
-                    existingPiece.SetPosition(new Vector3((-1 * tileSize), deathOffsetY, 8 * tileSize) 
-                                              + Vector3.back * deathSpacing * _deadBlack.Count);
-                    
+                    Checkmate(0);
                 }
+                
+                _deadBlack.Add(existingPiece);
+                existingPiece.SetScale(Vector3.one * deadPieceScalar);
+                existingPiece.SetPosition(new Vector3((-1 * tileSize), deathOffsetY, 8 * tileSize) 
+                                          + Vector3.back * deathSpacing * _deadBlack.Count);
+                    
             }
         }
         

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -27,9 +28,16 @@ public class Piece : MonoBehaviour
     // for when killed
     private Vector3 _desiredScale = Vector3.one;
 
-    
+
+    private void Start()
+    {
+        // rotates the piece by 180 degrees if its a black piece
+        transform.rotation = Quaternion.Euler((side == 0) ? Vector3.zero : new Vector3(0, 180, 0));
+    }
+
+
     // handles movement of the piece
-    public void Update()
+    private void Update()
     {
         // Vector3.Lerp linearly interpolates between 2 points 
         transform.position = Vector3.Lerp(transform.position, _desiredPosition, Time.deltaTime * 10);
