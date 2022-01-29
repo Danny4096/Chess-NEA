@@ -91,13 +91,13 @@ public class Bishop : Piece
         {
             //currentY + (x - currentX)
             checkPos = currentY - (x - currentX);
-            Debug.Log($"x:{x}, y:{checkPos}");
+            //Debug.Log($"x:{x}, y:{checkPos}");
             if (!(checkPos < tileCountY && checkPos > -1))
             {
-                Debug.Log($"found edge at x:{x}, y:{checkPos}");
+                //Debug.Log($"found edge at x:{x}, y:{checkPos}");
                 break;
             }
-            Debug.Log($"x:{x}, y:{checkPos}");
+            //Debug.Log($"x:{x}, y:{checkPos}");
             if (board[x, checkPos] == null)
             {
                 moves.Add(new Vector2Int(x, checkPos));

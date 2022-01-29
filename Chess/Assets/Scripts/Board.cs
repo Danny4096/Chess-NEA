@@ -128,7 +128,7 @@ public class Board : MonoBehaviour
                         
                         // get a list of special moves
                         _specialMove = _currentlyHeld.GetSpecialMoves(ref _pieces, ref _moveList, ref _availableMoves);
-
+                        // check to see if moves are valid but in relation to the king being in check 
                         PreventCheck();
                         
                         // highlight tiles that can be moved to
@@ -147,6 +147,7 @@ public class Board : MonoBehaviour
                 bool moveIsValid = MovePiece(hitPos.x, hitPos.y, _currentlyHeld);
 
                 // if the move wasnt valid, return the piece to its previous position and blank the piece reference
+                Debug.Log("invalid move, attempting to return");
                 if (!moveIsValid)
                     _currentlyHeld.SetPosition(new Vector3(prevPos.x, offsetY, prevPos.y));
                 // clear the piece reference
@@ -592,8 +593,9 @@ public class Board : MonoBehaviour
         for (int x = 0; x < TileCountX; x++)
             for (int y = 0; y < TileCountY; y++)
                 if (_pieces[x,y] != null)
-                    if (_pieces[x, y].type == PieceType.King && _pieces[x, y].side == _currentlyHeld.side)
-                        targetKing = _pieces[x, y];
+                    if (_pieces[x, y].type == PieceType.King)
+                        if (_pieces[x, y].side == _currentlyHeld.side)
+                            targetKing = _pieces[x, y];
         // ref availablemoves because need to delete moves that could endanger the king
         SinglePieceMoveSimulation(_currentlyHeld, ref _availableMoves, targetKing);
     }
@@ -678,6 +680,81 @@ public class Board : MonoBehaviour
             moves.Remove(movesToRemove[i]);
         }
     }
+
+    private bool CheckmateCheck()
+    {
+        // for checking what team moved last
+        var lastMove = _moveList[_moveList.Count - 1];
+        // invert the side
+        int targetSide = (_pieces[lastMove[1].x, lastMove[1].y].side == 0) ? 1 : 0;
+        
+        List<Piece> attackingPieces = new List<Piece>();
+        List<Piece> defendingPieces = new List<Piece>();
+        Piece targetKing = null;
+        // iterate over the array of pieces and populate the defending and attacking pieces arrays correctly as well
+        // as get the king reference
+        for (int x = 0; x < TileCountX; x++)
+        {
+            for (int y = 0; y < TileCountY; y++)
+            {
+                if (_pieces[x, y] != null)
+                {
+                    if (_pieces[x, y].side == targetSide)
+                    {
+                        defendingPieces.Add(_pieces[x, y]);
+                        if (_pieces[x, y].type == PieceType.King)
+                            targetKing = _pieces[x, y];
+                    }
+                    else
+                    {
+                        attackingPieces.Add(_pieces[x,y]);
+                    }
+                }
+            }
+        }
+
+        // is the king being attacked right now?
+        // iterate over all of the pieces of the player who just moved and get their available moves
+        List<Vector2Int> currentAvailableMoves = new List<Vector2Int>();
+        for (int i = 0; i < attackingPieces.Count; i++)
+        {
+            List<Vector2Int> pieceMoves = attackingPieces[i].GetMoves(ref _pieces, TileCountX, TileCountY);
+            for (int b = 0; b < pieceMoves.Count; b++)
+                currentAvailableMoves.Add(pieceMoves[b]);
+        }
+
+        // iterate over all the available moves and check if the king's current position is a possible destination
+        // for an opponent's piece i.e. check if the king is under attack
+        if (ContainsValidMove(ref currentAvailableMoves, new Vector2Int(targetKing.currentX, targetKing.currentY)))
+        {
+            // king under attack, is it possible to save it?
+            // iterate over all of our pieces, get all of their available move, and run the single piece simulation
+            // on all of them to get rid of moves that would leave the king in check
+            for (int i = 0; i < defendingPieces.Count; i++)
+            {
+                List<Vector2Int> defendingMoves = defendingPieces[i].GetMoves(ref _pieces, TileCountX, TileCountY);
+                // since the list of moves sent is only available moves, any moves that leave the king in check are removed
+                SinglePieceMoveSimulation(defendingPieces[i], ref defendingMoves, targetKing);
+                // if there are possible defending moves, then it is not checkmate
+                if (defendingMoves.Count != 0)
+                {
+                    Debug.Log(defendingPieces[i].type);
+                    foreach (var move in defendingMoves)
+                    {
+                        Debug.Log($"x:{move.x}, y:{move.y}");
+                    }
+                    Debug.Log("reached false");
+                    Debug.Log(defendingMoves.Count);
+                    return false;
+                }
+            }
+            // checkmate if reached
+            Debug.Log("reached true");
+            return true;
+        }
+        return false;
+}   
+    
     
     // useful stuff
     
@@ -776,6 +853,11 @@ public class Board : MonoBehaviour
         isWhiteTurn = !isWhiteTurn;
         _moveList.Add(new Vector2Int[] {prevPos, new Vector2Int(x, y)});
         ProcessSpecialMove();
+
+        // check if the king is in checkmate. if so, call win condition
+        Debug.Log("calling checkmatecheck");
+        if (CheckmateCheck())
+            Checkmate(currentlyHeld.side);
 
         // set pawn flag to sow first move made
         if (_pieces[x, y].type == PieceType.Pawn)
