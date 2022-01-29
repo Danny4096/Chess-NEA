@@ -140,6 +140,7 @@ public class Board : MonoBehaviour
             // If mouse 1 released and piece held
             if (Input.GetMouseButtonUp(0) && _currentlyHeld != null)
             {
+                Debug.Log($"saving position at x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
                 // save previous piece position
                 Vector2Int prevPos = new Vector2Int(_currentlyHeld.currentX, _currentlyHeld.currentY);
                 
@@ -148,7 +149,11 @@ public class Board : MonoBehaviour
 
                 // if the move wasnt valid, return the piece to its previous position and blank the piece reference
                 if (!moveIsValid)
+                {
+                    Debug.Log($"move failed. returning to pos at x:{prevPos.x}, y:{prevPos.y}");
                     _currentlyHeld.SetPosition(new Vector3(prevPos.x, offsetY, prevPos.y));
+                }
+
                 // clear the piece reference
                 _currentlyHeld = null;
                 // remove tile highlight
@@ -607,20 +612,26 @@ public class Board : MonoBehaviour
         
 
         // simulate moves and check if we are in check
+        //iterate over all of the possible moves for the given piece (these are passed as parameters to this procedure)
         for (int i = 0; i < moves.Count; i++)
         {
+            // store x and y values for the move being simulated
             int simX = moves[i].x;
             int simY = moves[i].y;
 
-            
+            // store the position of the king to simulate it
             Vector2Int simKingPos = new Vector2Int(targetking.currentX, targetking.currentY);
             // has a king move been simulated?
+            // check if the piece being simulated is a king (meaning the king will be moving)
             if (piece.type == PieceType.King)
             {
-                // if yes, update the positions to the new posiitons
+                // if yes, update the position of the king to the destination (i.e. a potential available move)
                 simKingPos = new Vector2Int(simX, simY);
             }
             
+            
+            // Copy the board layout rather than directly reference it and get a list of the attacking pieces
+            // i.e. piece of the opposite side to the piece being simulated
             
             // Copy the 2d array representing the board state instead of referencing it
             Piece[,] sim = new Piece[TileCountX, TileCountY];
@@ -646,6 +657,8 @@ public class Board : MonoBehaviour
             piece.currentX = simX;
             piece.currentY = simY;
             sim[simX, simY] = piece;
+            
+            
             // did a piece get taken  during the sim?
             // i.e. is there a piece in simAttackingPieces that has the same coords as where we just moved to?
             var deadPiece = simAttackingPieces.Find((p => p.currentX == simX && p.currentY == simY));
@@ -653,7 +666,10 @@ public class Board : MonoBehaviour
             if (deadPiece != null)
                 simAttackingPieces.Remove(deadPiece);
             
-            // get all the simulated attacking pieces available moves
+            // using the new board state (with the piece passed as a param being moved), iterate over all of the pieces
+            // that can attack us and get their available moves
+            // each iteration, iterate over the array of potential moves and add them to the full list of moves to check
+            // so simMoves will have every possible move for every piece that the enemy can make
             List<Vector2Int> simMoves = new List<Vector2Int>();
             for (int a = 0; a < simAttackingPieces.Count; a++)
             {
@@ -662,12 +678,16 @@ public class Board : MonoBehaviour
                     simMoves.Add(pieceMoves[b]);
             }
             
-            // is the king in danger? if yes, remove the move
-            // i.e. has the king been killed because of the move that was made
+            
+            // check all of the potential moves that could've been made by the enemy and check if any of their positions
+            // match the position of the king on this simulated board
+            // if the king's position is the same as one of the moves' positions, that means a piece is attacking it, in
+            // which case, this move that is being simulated must be removed from the moves that can be made
             if (ContainsValidMove(ref simMoves, simKingPos))
                 movesToRemove.Add(moves[i]);
             
-            // restore piece data
+            // restore piece data - when the move was simulated, the x and y positions of the piece were changed so 
+            // they must be restored to their original values saved at the start of this procedure
             piece.currentX = actualX;
             piece.currentY = actualY;
         }
