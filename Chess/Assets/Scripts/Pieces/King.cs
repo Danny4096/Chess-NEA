@@ -49,4 +49,62 @@ public class King : Piece
         return moves;
         
     }
+
+    public override SpecialMove GetSpecialMoves(ref Piece[,] pieces, ref List<Vector2Int[]> moveList, ref List<Vector2Int> availableMoves)
+    {
+        SpecialMove move = SpecialMove.None;
+
+        // iterate over moves made and look for a move where the starting position is the king's position
+        // rinse and repeat for rooks
+        Vector2Int[] kingMove = moveList.Find(m => m[0].x == 4 && m[0].y == ((side == 0) ? 0 : 7));
+        Vector2Int[] leftRook = moveList.Find(m => m[0].x == 0 && m[0].y == ((side == 0) ? 0 : 7));
+        Vector2Int[] rightRook = moveList.Find(m => m[0].x == 7 && m[0].y == ((side == 0) ? 0 : 7));
+
+        // check if the king hasn't moved yet
+        if (kingMove == null && currentX == 4)
+        {
+            // white
+            if (side == 0)
+            {
+                // left rook
+                if (leftRook == null && pieces[0, 0].type == PieceType.Rook && pieces[0, 0].side == 0
+                    && pieces[3, 0] == null && pieces[2, 0] == null && pieces[3, 0] == null)
+                {
+                    availableMoves.Add(new Vector2Int(2, 0));
+                    move = SpecialMove.Castling;
+                }
+                
+                // right rook
+                if (rightRook == null && pieces[7, 0].type == PieceType.Rook && pieces[7, 0].side == 0
+                    && pieces[6, 0] == null && pieces[5, 0] == null)
+                {
+                    availableMoves.Add(new Vector2Int(6, 0));
+                    move = SpecialMove.Castling;
+                }
+            }
+            // black
+            else
+            {
+                // left rook
+                if (leftRook == null && pieces[0, 7].type == PieceType.Rook && pieces[0, 7].side == 1
+                    && pieces[3, 7] == null && pieces[2, 7] == null && pieces[3, 7] == null)
+                {
+                    availableMoves.Add(new Vector2Int(2, 7));
+                    move = SpecialMove.Castling;
+                }
+                
+                // right rook
+                if (rightRook == null && pieces[7, 7].type == PieceType.Rook && pieces[7, 7].side == 1
+                    && pieces[6, 7] == null && pieces[5, 7] == null)
+                {
+                    availableMoves.Add(new Vector2Int(6, 7));
+                    move = SpecialMove.Castling;
+                }
+            }
+        }
+        
+        
+        return move;
+        
+    }
 }

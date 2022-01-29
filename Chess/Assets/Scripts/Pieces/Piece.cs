@@ -69,6 +69,13 @@ public class Piece : MonoBehaviour
             transform.position = position;
         }
     }
+
+    public virtual SpecialMove GetSpecialMoves(ref Piece[,] pieces, ref List<Vector2Int[]> moveList,
+        ref List<Vector2Int> availableMoves)
+    {
+        return SpecialMove.None;
+    } 
+    
     
     // sets scale of piece. if force is true, the lerp in Update() is not used and the rescaling is instantaneous
     public virtual void SetScale(Vector3 scale, bool force = false)

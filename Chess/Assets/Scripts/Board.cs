@@ -3,6 +3,14 @@ using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.AI;
 
+public enum SpecialMove
+{
+    None = 0,
+    EnPassant,
+    Castling,
+    Promotion
+}
+
 public class Board : MonoBehaviour
 {
     [Header("Art stuff yk")] 
@@ -41,7 +49,10 @@ public class Board : MonoBehaviour
     private bool isWhiteTurn;
     [SerializeField] private float deadPieceScalar = 0.5f;
     [SerializeField] private float deathSpacing = 0.5f;
-
+    //special moves
+    private SpecialMove _specialMove;
+    private List<Vector2Int[]> _moveList = new List<Vector2Int[]>();
+    
     
     // Initialisation procedure - Called even if script component is disabled
     private void Awake()
@@ -114,6 +125,12 @@ public class Board : MonoBehaviour
                         _currentlyHeld = _pieces[hitPos.x, hitPos.y];
                         // get list of places the piece can be moved to
                         _availableMoves = _currentlyHeld.GetMoves(ref _pieces, TileCountX, TileCountY);
+                        
+                        // get a list of special moves
+                        _specialMove = _currentlyHeld.GetSpecialMoves(ref _pieces, ref _moveList, ref _availableMoves);
+
+                        PreventCheck();
+                        
                         // highlight tiles that can be moved to
                         HighlightTiles();
                     }
@@ -248,7 +265,6 @@ public class Board : MonoBehaviour
     }
     
     
-    
     // spawning pieces
     private void SpawnPieces()
     {
@@ -334,6 +350,7 @@ public class Board : MonoBehaviour
         }
     }
 
+    // this is for moving the actual piece visually after moving it in the array
     // bool force set to false for smooth piece movement
     private void SetPiecePosition(int x, int y, bool force = false)
     {
@@ -389,7 +406,8 @@ public class Board : MonoBehaviour
         
         // fields reset
         _currentlyHeld = null;
-        _availableMoves = new List<Vector2Int>();
+        _availableMoves.Clear();
+        _moveList.Clear();
         isWhiteTurn = true;
 
         // iterate over array of pieces and destroy piece gameObjects
@@ -430,6 +448,236 @@ public class Board : MonoBehaviour
     }
     
     
+    // special moves
+    private void ProcessSpecialMove()
+    {
+        // en passant
+        if (_specialMove == SpecialMove.EnPassant)
+        {
+            // get pawn that has just been moved
+            Vector2Int[] newMove = _moveList[_moveList.Count - 1];
+            Piece myPawn = _pieces[newMove[1].x, newMove[1].y];
+            // get pawn to potentially en passant
+            Vector2Int[] targetPawn = _moveList[_moveList.Count - 2];
+            Piece enemyPawn = _pieces[targetPawn[1].x, targetPawn[1].y];
+            
+            // could cast turn checking bool to int for this
+            
+            // check if they're on the same file
+            if (myPawn.currentX == enemyPawn.currentX)
+            {
+                // check the ranks they're on
+                if (myPawn.currentY == enemyPawn.currentY - 1 || myPawn.currentY == enemyPawn.currentY + 1)
+                {
+                    if (enemyPawn.side == 0)
+                    {
+                        // send the piece to the graveyard
+                        _deadWhite.Add(enemyPawn);
+                        // scale the piece down
+                        enemyPawn.SetScale(Vector3.one * deadPieceScalar);
+                        // set the position of the piece to the side of the board
+                        // deathOffsetY because the edge of the board is higher than the center so pieces need to be higher
+                        // 8 * tileSize puts it to the edge
+                        // -1 * tileSize makes it so its just behind the first rank on the board
+                        // (Vector3.forward * deathSpacing * deadWhite.Count makes it so that each dead piece is a bit
+                        // ahead of the last one on the z axis by adding a vector of (0, 0, deathSpacing) for each piece
+                        // that has died so far 
+                        enemyPawn.SetPosition(new Vector3(8 * tileSize, deathOffsetY, -1 * tileSize)
+                                              + Vector3.forward * deathSpacing * _deadWhite.Count);
+                    }
+                    else
+                    {
+                        // send the piece to the graveyard
+                        _deadBlack.Add(enemyPawn);
+                        enemyPawn.SetScale(Vector3.one * deadPieceScalar);
+                        enemyPawn.SetPosition(new Vector3((-1 * tileSize), deathOffsetY, 8 * tileSize) 
+                                              + Vector3.back * deathSpacing * _deadBlack.Count);
+                    
+                    }
+                    // blank the piece ref
+                    _pieces[enemyPawn.currentX, enemyPawn.currentY] = null;
+                }
+            }
+        }
+        // castling
+        if (_specialMove == SpecialMove.Castling)
+        {
+            Vector2Int[] lastMove = _moveList[_moveList.Count - 1];
+
+            // left rook
+            if (lastMove[1].x == 2)
+            {
+                if (lastMove[1].y == 0) // white
+                {
+                    Piece rook = _pieces[0, 0];
+                    _pieces[3, 0] = rook;
+                    SetPiecePosition(3,0);
+                    _pieces[0, 0] = null;
+                }
+                else if (lastMove[1].y == 7) //black
+                {
+                    Piece rook = _pieces[0, 7];
+                    _pieces[3, 7] = rook;
+                    SetPiecePosition(3,7);
+                    _pieces[0, 7] = null;
+                }
+            }
+            // right rook
+            else if (lastMove[1].x == 6)
+            {
+                if (lastMove[1].y == 0) // white
+                {
+                    Piece rook = _pieces[7, 0];
+                    _pieces[5, 0] = rook;
+                    SetPiecePosition(5,0);
+                    _pieces[7, 0] = null;
+                }
+                else if (lastMove[1].y == 7) //black
+                {
+                    Piece rook = _pieces[7, 7];
+                    _pieces[5, 7] = rook;
+                    SetPiecePosition(5,7);
+                    _pieces[7, 7] = null;
+                }
+            }
+        }
+        // pawn promotion
+        if (_specialMove == SpecialMove.Promotion)
+        {
+            Vector2Int[] lastMove = _moveList[_moveList.Count - 1];
+            Piece targetPawn = _pieces[lastMove[1].x, lastMove[1].y];
+
+            // check if its actually a pawn
+            if (targetPawn.type == PieceType.Pawn)
+            {
+                // white
+                if (targetPawn.side == 0 && lastMove[1].y == 7)
+                {
+                    // temporarily automatically promoting to a queen because honestly why would you choose otherwise
+                    Piece newQueen = SpawnPiece(PieceType.Queen, 0);
+                    // destroy pawn gameObject
+                    Destroy(_pieces[lastMove[1].x, lastMove[1].y].gameObject);
+                    // overwrite pawn ref with queen ref
+                    _pieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                    // set position of queen
+                    SetPiecePosition(lastMove[1].x, lastMove[1].y, true);
+
+                }
+                
+                // black
+                if (targetPawn.side == 1 && lastMove[1].y == 0)
+                {
+                    // temporarily automatically promoting to a queen because honestly why would you choose otherwise
+                    Piece newQueen = SpawnPiece(PieceType.Queen, 1);
+                    // destroy pawn gameObject
+                    Destroy(_pieces[lastMove[1].x, lastMove[1].y].gameObject);
+                    // overwrite pawn ref with queen ref
+                    _pieces[lastMove[1].x, lastMove[1].y] = newQueen;
+                    // set position of queen
+                    SetPiecePosition(lastMove[1].x, lastMove[1].y, true);
+
+                }
+            }
+        }
+    }
+
+    
+    // this function handles check
+    // it allows for pieces to be "pinned", as well as forcing the king to be protected
+    private void PreventCheck()
+    {
+        // create temp variable for storing king piece ref
+        Piece targetKing = null;
+        // iterate over the array of pieces and get the king for the side whose turn it currently is
+        for (int x = 0; x < TileCountX; x++)
+            for (int y = 0; y < TileCountY; y++)
+                if (_pieces[x,y] != null)
+                    if (_pieces[x, y].type == PieceType.King && _pieces[x, y].side == _currentlyHeld.side)
+                        targetKing = _pieces[x, y];
+        // ref availablemoves because need to delete moves that could endanger the king
+        SinglePieceMoveSimulation(_currentlyHeld, ref _availableMoves, targetKing);
+    }
+
+    private void SinglePieceMoveSimulation(Piece piece, ref List<Vector2Int> moves, Piece targetking)
+    {
+        // save current values for resetting after the func call
+        int actualX = _currentlyHeld.currentX;
+        int actualY = _currentlyHeld.currentY;
+        List<Vector2Int> movesToRemove = new List<Vector2Int>();
+        
+
+        // simulate moves and check if we are in check
+        for (int i = 0; i < moves.Count; i++)
+        {
+            int simX = moves[i].x;
+            int simY = moves[i].y;
+
+            
+            Vector2Int simKingPos = new Vector2Int(targetking.currentX, targetking.currentY);
+            // has a king move been simulated?
+            if (piece.type == PieceType.King)
+            {
+                // if yes, update the positions to the new posiitons
+                simKingPos = new Vector2Int(simX, simY);
+            }
+            
+            
+            // Copy the 2d array representing the board state instead of referencing it
+            Piece[,] sim = new Piece[TileCountX, TileCountY];
+            // this list holds all the opponent's pieces
+            List<Piece> simAttackingPieces = new List<Piece>();
+            for (int x = 0; x < TileCountX; x++)
+            {
+                for (int y = 0; y < TileCountY; y++)
+                {
+                    if (_pieces[x, y] != null)
+                    {
+                        sim[x, y] = _pieces[x, y];
+                        if (sim[x, y].side != _currentlyHeld.side)
+                            simAttackingPieces.Add(sim[x, y]);
+                    }
+                }
+            }
+            
+            // simulate the move
+            
+            // move the piece (but not graphically)
+            sim[actualX, actualY] = null;
+            piece.currentX = simX;
+            piece.currentY = simY;
+            sim[simX, simY] = piece;
+            // did a piece get taken  during the sim?
+            // i.e. is there a piece in simAttackingPieces that has the same coords as where we just moved to?
+            var deadPiece = simAttackingPieces.Find((p => p.currentX == simX && p.currentY == simY));
+            // if yes, then remove it from pieces that can attack us
+            if (deadPiece != null)
+                simAttackingPieces.Remove(deadPiece);
+            
+            // get all the simulated attacking pieces available moves
+            List<Vector2Int> simMoves = new List<Vector2Int>();
+            for (int a = 0; a < simAttackingPieces.Count; a++)
+            {
+                var pieceMoves = simAttackingPieces[a].GetMoves(ref sim, TileCountX, TileCountY);
+                for (int b = 0; b < pieceMoves.Count; b++)
+                    simMoves.Add(pieceMoves[b]);
+            }
+            
+            // is the king in danger? if yes, remove the move
+            // i.e. has the king been killed because of the move that was made
+            if (ContainsValidMove(ref simMoves, simKingPos))
+                movesToRemove.Add(moves[i]);
+            
+            // restore piece data
+            piece.currentX = actualX;
+            piece.currentY = actualY;
+        }
+        
+        // remove from the available moves list
+        for (int i = 0; i < movesToRemove.Count; i++)
+        {
+            moves.Remove(movesToRemove[i]);
+        }
+    }
     
     // useful stuff
     
@@ -471,7 +719,7 @@ public class Board : MonoBehaviour
     private bool MovePiece(int x, int y, Piece currentlyHeld)
     {
         // check if the move is a valid move
-        if (!ContainsValidMove(ref _availableMoves, new Vector2(x, y)))
+        if (!ContainsValidMove(ref _availableMoves, new Vector2Int(x, y)))
         {
             return false;
         }
@@ -526,7 +774,9 @@ public class Board : MonoBehaviour
         SetPiecePosition(x, y);
 
         isWhiteTurn = !isWhiteTurn;
-        
+        _moveList.Add(new Vector2Int[] {prevPos, new Vector2Int(x, y)});
+        ProcessSpecialMove();
+
         // set pawn flag to sow first move made
         if (_pieces[x, y].type == PieceType.Pawn)
         {
@@ -537,10 +787,10 @@ public class Board : MonoBehaviour
         
         return true;
     }
-
-
-    // function used to check for tiles to rehighlight after being hovered over
-    private bool ContainsValidMove(ref List<Vector2Int> availableMoves, Vector2 position)
+    
+    // procedure to check a list of moves against a specific move
+    // used to check for tiles to rehighlight after being hovered over and for checking if the king is in danger
+    private bool ContainsValidMove(ref List<Vector2Int> availableMoves, Vector2Int position)
     {
         foreach (Vector2Int move in availableMoves)
             if (move.x == position.x && move.y == position.y)
