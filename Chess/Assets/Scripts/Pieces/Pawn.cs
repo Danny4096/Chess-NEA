@@ -34,7 +34,8 @@ public class Pawn : Piece
                 moves.Add(new Vector2Int(currentX, currentY + direction));
 
             // check for 2 squares ahead on the first move
-            if (!_firstMoveMade && board[currentX, currentY + 2 * direction] == null)
+            if (!_firstMoveMade && board[currentX, currentY + 2 * direction] == null 
+                                &&  board[currentX, currentY + 1 * direction] == null)
                 moves.Add(new Vector2Int(currentX, currentY + 2 * direction));
 
             // check for diagonal kill
