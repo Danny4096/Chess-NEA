@@ -147,9 +147,14 @@ public class Board : MonoBehaviour
                 bool moveIsValid = MovePiece(hitPos.x, hitPos.y, _currentlyHeld);
 
                 // if the move wasnt valid, return the piece to its previous position and blank the piece reference
-                Debug.Log("invalid move, attempting to return");
+                
                 if (!moveIsValid)
-                    _currentlyHeld.SetPosition(new Vector3(prevPos.x, offsetY, prevPos.y));
+                {
+                    Debug.Log("invalid move, attempting to return");
+                    Debug.Log($"returning to x:{prevPos.x}, y: {prevPos.x}");
+                    _currentlyHeld.SetPosition(new Vector3(prevPos.x, offsetY, prevPos.x));
+                }
+
                 // clear the piece reference
                 _currentlyHeld = null;
                 // remove tile highlight
@@ -846,6 +851,7 @@ public class Board : MonoBehaviour
         }
         
         Vector2Int prevPos = new Vector2Int(currentlyHeld.currentX, currentlyHeld.currentY);
+        Debug.Log($"from movepiece(): x:{prevPos.x}, y:{prevPos.y}");
         _pieces[x, y] = currentlyHeld;
         _pieces[prevPos.x, prevPos.y] = null;
         SetPiecePosition(x, y);
