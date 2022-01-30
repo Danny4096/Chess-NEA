@@ -125,10 +125,14 @@ public class Board : MonoBehaviour
                         _currentlyHeld = _pieces[hitPos.x, hitPos.y];
                         // get list of places the piece can be moved to
                         _availableMoves = _currentlyHeld.GetMoves(ref _pieces, TileCountX, TileCountY);
+                        Debug.Log($"found {_availableMoves.Count} moves for {_currentlyHeld.type} at " +
+                                  $"x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
                         
                         // get a list of special moves
                         _specialMove = _currentlyHeld.GetSpecialMoves(ref _pieces, ref _moveList, ref _availableMoves);
 
+                        // the reason debug logs for positions of other pieces are logged are because this is called
+                        // so the checks for all pieces are ran
                         PreventCheck();
                         
                         // highlight tiles that can be moved to
@@ -601,6 +605,8 @@ public class Board : MonoBehaviour
                         targetKing = _pieces[x, y];
         // ref availablemoves because need to delete moves that could endanger the king
         SinglePieceMoveSimulation(_currentlyHeld, ref _availableMoves, targetKing);
+        Debug.Log($"completed check prevention - found {_availableMoves.Count} moves for {_currentlyHeld.type} at " +
+                  $"x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
     }
 
     private void SinglePieceMoveSimulation(Piece piece, ref List<Vector2Int> moves, Piece targetking)

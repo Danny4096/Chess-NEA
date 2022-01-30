@@ -44,10 +44,7 @@ public class King : Piece
                     moves.Add(position);
             }
         }
-
-
         return moves;
-        
     }
 
     public override SpecialMove GetSpecialMoves(ref Piece[,] pieces, ref List<Vector2Int[]> moveList, ref List<Vector2Int> availableMoves)
