@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.AI;
@@ -125,8 +127,8 @@ public class Board : MonoBehaviour
                         _currentlyHeld = _pieces[hitPos.x, hitPos.y];
                         // get list of places the piece can be moved to
                         _availableMoves = _currentlyHeld.GetMoves(ref _pieces, TileCountX, TileCountY);
-                        Debug.Log($"found {_availableMoves.Count} moves for {_currentlyHeld.type} at " +
-                                  $"x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
+                        //Debug.Log($"found {_availableMoves.Count} moves for {_currentlyHeld.type} at " +
+                        //          $"x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
                         
                         // get a list of special moves
                         _specialMove = _currentlyHeld.GetSpecialMoves(ref _pieces, ref _moveList, ref _availableMoves);
@@ -144,7 +146,7 @@ public class Board : MonoBehaviour
             // If mouse 1 released and piece held
             if (Input.GetMouseButtonUp(0) && _currentlyHeld != null)
             {
-                Debug.Log($"saving position at x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
+                //Debug.Log($"saving position at x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
                 // save previous piece position
                 Vector2Int prevPos = new Vector2Int(_currentlyHeld.currentX, _currentlyHeld.currentY);
                 
@@ -154,7 +156,7 @@ public class Board : MonoBehaviour
                 // if the move wasnt valid, return the piece to its previous position and blank the piece reference
                 if (!moveIsValid)
                 {
-                    Debug.Log($"move failed. returning to pos at x:{prevPos.x}, y:{prevPos.y}");
+                    //Debug.Log($"move failed. returning to pos at x:{prevPos.x}, y:{prevPos.y}");
                     _currentlyHeld.SetPosition(new Vector3(prevPos.x, offsetY, prevPos.y));
                 }
 
@@ -605,15 +607,18 @@ public class Board : MonoBehaviour
                         targetKing = _pieces[x, y];
         // ref availablemoves because need to delete moves that could endanger the king
         SinglePieceMoveSimulation(_currentlyHeld, ref _availableMoves, targetKing);
-        Debug.Log($"completed check prevention - found {_availableMoves.Count} moves for {_currentlyHeld.type} at " +
-                  $"x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
+        //Debug.Log($"completed check prevention - found {_availableMoves.Count} moves for {_currentlyHeld.type} at " +
+        //          $"x:{_currentlyHeld.currentX}, y:{_currentlyHeld.currentY}");
     }
 
     private void SinglePieceMoveSimulation(Piece piece, ref List<Vector2Int> moves, Piece targetking)
     {
         // save current values for resetting after the func call
-        int actualX = _currentlyHeld.currentX;
-        int actualY = _currentlyHeld.currentY;
+        //Debug.Log("beginning move sim");
+        //Debug.Log(piece.type);
+        //Debug.Log($"x:{piece.currentX}, y:{piece.currentY}");
+        int actualX = piece.currentX;
+        int actualY = piece.currentY;
         List<Vector2Int> movesToRemove = new List<Vector2Int>();
         
 
@@ -650,7 +655,7 @@ public class Board : MonoBehaviour
                     if (_pieces[x, y] != null)
                     {
                         sim[x, y] = _pieces[x, y];
-                        if (sim[x, y].side != _currentlyHeld.side)
+                        if (sim[x, y].side != piece.side)
                             simAttackingPieces.Add(sim[x, y]);
                     }
                 }
@@ -689,9 +694,17 @@ public class Board : MonoBehaviour
             // match the position of the king on this simulated board
             // if the king's position is the same as one of the moves' positions, that means a piece is attacking it, in
             // which case, this move that is being simulated must be removed from the moves that can be made
+            //Debug.Log($"there are {simMoves.Count} moves that the enemy can make");
+            foreach (Vector2Int m in simMoves)
+            {
+                //Debug.Log($"move: x{m.x}, y{m.y}");
+            }
             if (ContainsValidMove(ref simMoves, simKingPos))
+            {
+                //Debug.Log("found a move to remove");
                 movesToRemove.Add(moves[i]);
-            
+            }
+
             // restore piece data - when the move was simulated, the x and y positions of the piece were changed so 
             // they must be restored to their original values saved at the start of this procedure
             piece.currentX = actualX;
@@ -703,13 +716,100 @@ public class Board : MonoBehaviour
         {
             moves.Remove(movesToRemove[i]);
         }
+
+        //Debug.Log("FINISHED SIM");
+        foreach (var move in movesToRemove)
+        {
+            //Debug.Log($"x:{move.x}, y:{move.y}");
+        }
     }
 
 
     private bool CheckForCheckmate()
     {
+        for (int i = 0; i < TileCountX; i++)
+        {
+            for (int j = 0; j < TileCountY; j++)
+            {
+                if (_pieces[i,j] != null)
+                {
+                    //Debug.Log(_pieces[i,j].type);
+                    //Debug.Log($"x:{_pieces[i,j].currentX}, y:{_pieces[i,j].currentY}");
+                }
+            }
+        }
+
+        Vector2Int[] lastMove = _moveList[_moveList.Count - 1];
+        int targetTeam = (_pieces[lastMove[1].x, lastMove[1].y].side == 0) ? 1 : 0;
 
 
+        Piece targetKing = null;
+        List<Piece> attackingPieces = new List<Piece>();
+        List<Piece> defendingPieces = new List<Piece>();
+        for (int x = 0; x < TileCountX; x++)
+        {
+            for (int y = 0; y < TileCountY; y++)
+            {
+                if (_pieces[x, y] != null)
+                {
+                    if (_pieces[x, y].side == targetTeam)
+                    {
+                        defendingPieces.Add(_pieces[x, y]);
+                        if (_pieces[x, y].type == PieceType.King)
+                        {
+                            targetKing = _pieces[x, y];
+                        }
+                    }
+                    else
+                    {
+                        attackingPieces.Add(_pieces[x,y]);
+                    }
+                }
+            }
+        }
+
+        /*
+        foreach (Piece p in defendingPieces)
+        {
+            //Debug.Log(p.type);
+        }
+        //Debug.Log(defendingPieces[0].side);
+        */
+
+        // check if the king is being attacked
+        //Debug.Log("checking if king in danger");
+        List<Vector2Int> attackingMoves = new List<Vector2Int>();
+
+        for (int i = 0; i < attackingPieces.Count; i++)
+        {
+            List<Vector2Int> pieceMoves = attackingPieces[i].GetMoves(ref _pieces, TileCountX, TileCountY);
+            for (int j = 0; j < pieceMoves.Count; j++)
+                attackingMoves.Add(pieceMoves[j]);
+        }
+        
+        //Debug.Log("added moves to attackingmoves array");
+        if (ContainsValidMove(ref attackingMoves, new Vector2Int(targetKing.currentX, targetKing.currentY)))
+        {
+            for (int i = 0; i < defendingPieces.Count; i++)
+            {
+                List<Vector2Int> defendingMoves = defendingPieces[i].GetMoves(ref _pieces, TileCountX, TileCountY);
+                SinglePieceMoveSimulation(defendingPieces[i], ref defendingMoves, targetKing);
+                
+                // if there is ever a possible move, we're chillin
+                if (defendingMoves.Count != 0)
+                {
+                    //Debug.Log("found potential moves");
+                    //Debug.Log(defendingPieces[i].type);
+                    foreach (Vector2Int m in defendingMoves)
+                    {
+                        //Debug.Log($"x:{m.x}, y:{m.y}");
+                    }
+                    return false;
+                }
+            }
+
+            return true; // checkmate, ggs
+        }
         return false;
         
     }
@@ -814,8 +914,14 @@ public class Board : MonoBehaviour
 
         isWhiteTurn = !isWhiteTurn;
         _moveList.Add(new Vector2Int[] {prevPos, new Vector2Int(x, y)});
+        
         ProcessSpecialMove();
 
+        if (CheckForCheckmate())
+        {
+            Checkmate(currentlyHeld.side);
+        }
+        
         return true;
     }
     
