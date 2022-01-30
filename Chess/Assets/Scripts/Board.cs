@@ -704,7 +704,20 @@ public class Board : MonoBehaviour
             moves.Remove(movesToRemove[i]);
         }
     }
-    
+
+
+    private bool CheckForCheckmate()
+    {
+
+
+        return false;
+        
+    }
+
+
+
+
+
     // useful stuff
     
     // used to find tile when raycasting
@@ -803,14 +816,6 @@ public class Board : MonoBehaviour
         _moveList.Add(new Vector2Int[] {prevPos, new Vector2Int(x, y)});
         ProcessSpecialMove();
 
-        // set pawn flag to sow first move made
-        if (_pieces[x, y].type == PieceType.Pawn)
-        {
-            // getter and setter in the pawn class
-            //bool a = _pieces[x, y].GetComponent<Pawn>().firstMoveMade;
-            _pieces[x, y].GetComponent<Pawn>().firstMoveMade = true;
-        }
-        
         return true;
     }
     

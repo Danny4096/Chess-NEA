@@ -5,17 +5,8 @@ using UnityEngine;
 
 public class Pawn : Piece
 {
-    private bool _firstMoveMade;
-
-    public bool firstMoveMade
-    {
-        get { return _firstMoveMade; }
-        set { _firstMoveMade = value; }
-    }
     public Pawn()
     {
-        // set the firstMoveMade bool to false because, surprisingly, the first move hasn't been made yet 
-        _firstMoveMade = false;
     }
 
     public override List<Vector2Int> GetMoves(ref Piece[,] board, int tileCountX, int tileCountY)
@@ -34,8 +25,17 @@ public class Pawn : Piece
                 moves.Add(new Vector2Int(currentX, currentY + direction));
 
             // check for 2 squares ahead on the first move
-            if (!_firstMoveMade && board[currentX, currentY + 2 * direction] == null 
+            /*if (!_firstMoveMade && board[currentX, currentY + 2 * direction] == null 
                                 &&  board[currentX, currentY + 1 * direction] == null)
+                moves.Add(new Vector2Int(currentX, currentY + 2 * direction));*/
+            
+            if (currentY == 1 && side == 0 
+                              && board[currentX, currentY + 2 * direction] == null 
+                              &&  board[currentX, currentY + 1 * direction] == null)
+                moves.Add(new Vector2Int(currentX, currentY + 2 * direction));
+            if (currentY == 6 && side == 1 
+                              && board[currentX, currentY + 2 * direction] == null 
+                              &&  board[currentX, currentY + 1 * direction] == null)
                 moves.Add(new Vector2Int(currentX, currentY + 2 * direction));
 
             // check for diagonal kill
